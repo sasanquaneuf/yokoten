@@ -2,6 +2,7 @@
 
 カレントディレクトリ、または指定したフォルダをgrepし、対象となるファイルについて同一のスクリプトで生成AIに横展開修正の要否を質問します。
 
+- OpenAI
 - Bedrockを経由したClaude v3.x
 - Gemini
 
@@ -37,7 +38,14 @@ Bedrockを使用できるIAMユーザーが必要です。
 
 ### Geminiを利用する場合
 
-環境変数GEMINI_API_KEYに、Geminiを利用可能なAPI KEYを設定してください。
+環境変数`GEMINI_API_KEY`に、Google AI Studioで取得したAPI KEYを設定してください。  
+（Google AI Studioページの「API キーを取得」(Get API key) や「APIキーを管理」(Manage API keys) のようなリンクから取得できます。）
+
+### OpenAIを利用する場合
+
+環境変数`OPENAI_API_KEY`に、API KEYを設定してください。  
+（OpenAIのプラットフォームサイト https://platform.openai.com/ にログインした後にAPI keysページで取得できます。
+なお、先に課金していないと429エラーになります。）
 
 ## 実行コマンド
 

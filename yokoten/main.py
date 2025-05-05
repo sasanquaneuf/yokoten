@@ -30,7 +30,7 @@ def load_config():
                     config = yaml.safe_load(f)
                     break
         # 環境変数からAPIキーを読み込む (google_aiの場合)
-        if config.get('ai_model', {}).get('platform') == 'google_ai':
+        if config.get('ai_model', {}).get('platform') in ('google_ai', 'openai'):
             api_key_env = config.get('ai_model', {}).get('api_key_env')
             if api_key_env:
                 api_key = os.environ.get(api_key_env)
@@ -131,6 +131,24 @@ def initialize_ai(config: dict):
             traceback.print_exc()
             sys.exit(1)
 
+    elif platform == 'openai':
+        try:
+            from openai import OpenAI
+            from openai import APIError, RateLimitError, APIConnectionError, APITimeoutError
+            print("OpenAI SDK を使用します。")
+            client = OpenAI(api_key=ai_config['api_key'])
+            # model_name は query_ai_for_file で使用する
+            return {"client": client, "model_name": ai_config['model_name']}, "openai"
+        except ImportError:
+            print("エラー: 'openai' ライブラリがインストールされていません。", file=sys.stderr)
+            print("pip install openai を実行してください。", file=sys.stderr)
+            traceback.print_exc()
+            sys.exit(1)
+        except Exception as e:
+            print(f"エラー: OpenAI クライアントの初期化に失敗しました: {e}", file=sys.stderr)
+            traceback.print_exc()
+            sys.exit(1)
+
     else:
         print(f"エラー: 未知のプラットフォーム '{platform}' が設定されています。", file=sys.stderr)
         sys.exit(1)
@@ -205,7 +223,7 @@ def query_ai_for_file(model, platform, file_path, file_content, default_prompt, 
     :param max_retries:
     :return:
     """
-    full_prompt = f"{default_prompt}\n\n{additional_prompt}\n\n" \
+    user_prompt = f"{additional_prompt}\n\n" \
                   f"--- 対象ファイルの内容 ({os.path.basename(file_path)}) ---\n" \
                   f"```\n{file_content}\n```\n--- ファイル内容ここまで ---\n\n分析結果をJSONで出力してください。"
 
@@ -214,10 +232,10 @@ def query_ai_for_file(model, platform, file_path, file_content, default_prompt, 
         try:
             print(f"  Attempt {attempt + 1}/{max_retries}...")
             if platform == "google_ai":
-                response = model.generate_content(full_prompt)
+                response = model.generate_content(f"{default_prompt}\n\n{user_prompt}")
                 response_text = response.text
             elif platform == "vertex_ai":
-                response = model.generate_content(full_prompt)
+                response = model.generate_content(f"{default_prompt}\n\n{user_prompt}")
                 response_text = response.text  # Vertex AIも .text でアクセス可能
 
             elif platform == "amazon_bedrock":
@@ -226,7 +244,7 @@ def query_ai_for_file(model, platform, file_path, file_content, default_prompt, 
                     messages = [
                         {
                             "role": "user",
-                            "content": [{"text": full_prompt}]
+                            "content": [{"text": f"{default_prompt}\n\n{user_prompt}"}]
                         }
                     ]
 
@@ -241,6 +259,24 @@ def query_ai_for_file(model, platform, file_path, file_content, default_prompt, 
                     print(f"  エラー: Bedrock からの応答取得に失敗しました: {e}")
                     response_text = ''
 
+            elif platform == "openai":
+                # model_info = {"client": OpenAIクライアント, "model_name": str}
+                client = model["client"]
+                model_name = model["model_name"]
+                # OpenAI API呼び出し
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": default_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    # JSONモードを試みる (モデルが対応している場合)
+                    # response_format={"type": "json_object"}
+                    # 注意: JSONモードが失敗する場合や使えないモデルもあるため、
+                    # まずはテキストで取得し、後でパースする方が堅牢
+                    temperature=0.2,  # 再現性を高めるために低めに設定
+                )
+                response_text = response.choices[0].message.content
             else:
                 raise ValueError(f"未知のプラットフォーム: {platform}")
 

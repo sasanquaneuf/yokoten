@@ -17,6 +17,10 @@ ai_model:
 #  model_id: anthropic.claude-3-7-sonnet-20250219-v1:0
   region: us-east-1
 
+#ai_model:
+#  platform: openai
+#  api_key_env: OPENAI_API_KEY
+#  model_name: gpt-4o-2024-11-20
 
 # プロンプト設定
 prompts:
@@ -28,7 +32,7 @@ prompts:
     問題がない場合の説明は少なくてOKです。他のテキストは含めないでください。
     {
       "required": boolean,  // 修正が必要な場合はtrue, 不要な場合はfalse
-      "details": "string"   // 判断理由や修正が必要な場合の具体的な箇所・内容の指摘
+      "details": "string"   // 判断理由や修正が必要な場合の具体的な箇所・内容の指摘（日本語）
     }
   # grepで見つかったファイルに対する追加プロンプト (例)
   # (スクリプト実行時にユーザーが入力する部分の前に付与される)
