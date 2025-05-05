@@ -1,0 +1,43 @@
+# AIモデル設定 (例: Google AI Studio / Gemini)
+#ai_model:
+#  platform: "google_ai"
+#  model_name: "gemini-1.5-pro-latest" # 使用するモデル名 (利用可能な最新モデルを確認してください)
+#  api_key_env: "GEMINI_API_KEY" # APIキーを格納する環境変数名 (直接書かない)
+
+#ai_model:
+#  platform: "vertex_ai"
+#  project_id: "your-gcp-project-id"
+#  location: "us-central1" # または利用可能なリージョン
+#  model_name: "gemini-1.5-pro-preview-0409" # Vertex AIでのモデル名
+#  api_key_env: "GEMINI_API_KEY" # APIキーを格納する環境変数名 (直接書かない)
+
+ai_model:
+  platform: amazon_bedrock
+  model_id: anthropic.claude-3-5-sonnet-20240620-v1:0
+#  model_id: anthropic.claude-3-7-sonnet-20250219-v1:0
+  region: us-east-1
+
+
+# プロンプト設定
+prompts:
+  # AIへの指示の基本部分 (JSON形式での出力を強制)
+  default_prefix: |
+    あなたはソフトウェア開発における横展開の影響分析を支援するAIです。
+    以下のファイル内容を確認し、指定された観点での修正（横展開）が必要かどうかを判断してください。
+    回答は必ず以下のJSON形式で出力してください。特に文字列中の改行は必ずエスケープしてください。
+    問題がない場合の説明は少なくてOKです。他のテキストは含めないでください。
+    {
+      "required": boolean,  // 修正が必要な場合はtrue, 不要な場合はfalse
+      "details": "string"   // 判断理由や修正が必要な場合の具体的な箇所・内容の指摘
+    }
+  # grepで見つかったファイルに対する追加プロンプト (例)
+  # (スクリプト実行時にユーザーが入力する部分の前に付与される)
+  # (不要な場合は空にするか、このキー自体を削除)
+  # file_analysis_prefix: |
+  #   以下のコードは、脆弱性XXXの修正に関連して変更された可能性があります。
+
+# 結果保存ファイル
+output_file: "result_yokoten%Y%m%d%H%M%S.json"
+
+# AIリトライ回数
+max_retries: 5

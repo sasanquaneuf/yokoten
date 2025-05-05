@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yokoten"
+version = "0.1.0"
+description = "Yokotenkai tool"
+authors = [{ name = "sasanquaneuf", email = "sasanquaneuf@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    'PyYAML',
+    'google-generativeai',
+    'vertexai',
+    'boto3',
+]
+
+[project.scripts]
+yokoten = "yokoten.main:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"yokoten" = ["config.yaml.default"]

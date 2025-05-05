@@ -1,0 +1,6 @@
+.idea
+.DS_Store
+build
+yokoten.egg-info
+yokoten/config.yaml
+result_yokoten*
