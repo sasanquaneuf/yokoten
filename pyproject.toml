@@ -24,4 +24,7 @@ yokoten = "yokoten.main:main"
 include-package-data = true
 
 [tool.setuptools.package-data]
-"yokoten" = ["config.yaml.default"]
+"yokoten" = [
+    "config.yaml.default",
+    "template/report.html",
+]

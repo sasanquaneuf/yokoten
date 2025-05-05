@@ -34,14 +34,12 @@ prompts:
       "required": boolean,  // 修正が必要な場合はtrue, 不要な場合はfalse
       "details": "string"   // 判断理由や修正が必要な場合の具体的な箇所・内容の指摘（日本語）
     }
-  # grepで見つかったファイルに対する追加プロンプト (例)
-  # (スクリプト実行時にユーザーが入力する部分の前に付与される)
-  # (不要な場合は空にするか、このキー自体を削除)
-  # file_analysis_prefix: |
-  #   以下のコードは、脆弱性XXXの修正に関連して変更された可能性があります。
 
-# 結果保存ファイル
-output_file: "result_yokoten%Y%m%d%H%M%S.json"
+# 結果保存ファイル（拡張子以外）
+output_file: "result_yokoten%Y%m%d%H%M%S"
 
 # AIリトライ回数
 max_retries: 5
+
+# ファイル種類
+file_type: html

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分析結果レポート - yokoten</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f9fa;
+            color: #212529;
+            line-height: 1.6;
+        }
+
+        .report-container {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .report-header {
+            padding: 15px 20px;
+            background-color: #e9ecef;
+            border-bottom: 1px solid #dee2e6;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .report-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: #495057;
+        }
+
+        .report-meta {
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .meta-section {
+            margin-bottom: 15px;
+        }
+
+        .meta-section h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+            color: #495057;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .meta-item {
+            margin-bottom: 5px;
+            font-size: 0.95em;
+        }
+        .meta-item strong {
+            display: inline-block;
+            min-width: 120px; /* ラベルの幅を揃える */
+            color: #6c757d;
+        }
+
+        .meta-item pre {
+            background-color: #f1f3f5;
+            border: 1px solid #ced4da;
+            padding: 10px;
+            margin: 5px 0 0 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            color: #495057;
+            border-radius: 4px;
+            max-height: 200px; /* プロンプトが長すぎる場合に備えてスクロール */
+            overflow-y: auto;
+        }
+
+        .results-container {
+            padding: 20px;
+        }
+
+        .results-container h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            color: #343a40;
+        }
+
+
+        /* --- File Result Styling (ほぼ前回と同じ) --- */
+        .test-file {
+            border: 1px solid #dee2e6;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #fff;
+             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .file-header {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            position: relative; /* For indicator positioning */
+        }
+
+        .file-header:hover {
+            background-color: #e9ecef;
+        }
+
+        .file-header::before { /* Indicator icon */
+           content: '▶';
+           display: inline-block;
+           font-size: 0.7em;
+           color: #6c757d;
+           position: absolute; /* Use absolute positioning */
+           left: 15px;
+           top: 50%;
+           transform: translateY(-50%) rotate(0deg);
+           transition: transform 0.2s ease;
+        }
+
+        .test-file.open .file-header::before {
+           transform: translateY(-50%) rotate(90deg);
+        }
+
+        .status {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 20px; /* Space for indicator */
+            margin-right: 10px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .status.required {
+            background-color: #fd7e14; /* Bootstrap Orange */
+        }
+
+        .status.passed {
+            background-color: #20c997; /* Bootstrap Teal */
+        }
+
+        .file-path {
+            font-weight: 500;
+            color: #0d6efd; /* Bootstrap Blue */
+            word-break: break-all;
+            font-size: 0.95em;
+        }
+
+        .details {
+            padding: 15px 20px;
+            display: none; /* Initially hidden */
+            border-top: 1px solid #dee2e6;
+        }
+
+        .details pre {
+            background-color: #fff;
+            border: none;
+            border-left: 3px solid #ced4da; /* Subtle left border */
+            padding: 10px 15px;
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            color: #495057;
+            line-height: 1.7;
+        }
+
+        /* Style for open state */
+        .test-file.open .details {
+            display: block;
+        }
+        .test-file.open .file-header {
+           /* Optional: remove bottom border when open if preferred */
+           /* border-bottom-color: transparent; */
+        }
+
+
+    </style>
+</head>
+<body>
+
+<div class="report-container">
+    <div class="report-header">
+        <h1>分析結果レポート - yokoten</h1>
+    </div>
+
+    <div class="report-meta">
+        <div class="meta-section">
+            <h3>実行情報</h3>
+            <div class="meta-item"><strong>開始時刻:</strong> <span id="startTime"></span></div>
+             <div class="meta-item"><strong>検索パターン:</strong> <code id="grepPattern"></code></div>
+        </div>
+
+        <div class="meta-section">
+            <h3>AIモデル情報</h3>
+            <div id="aiModelInfo">
+                </div>
+        </div>
+
+        <div class="meta-section">
+            <h3>使用プロンプト</h3>
+            <div id="promptsInfo">
+                </div>
+        </div>
+    </div>
+
+    <div class="results-container">
+        <h2>分析結果詳細（ハルシネーションに注意してください）</h2>
+        <div id="resultsDetails">
+            </div>
+    </div>
+</div>
+
+<script>
+    // 入力JSONデータ (ユーザー提供のものをベースに)
+    const jsonData = {}/* json_data */;
+
+    // --- メタ情報の設定 ---
+    document.getElementById('startTime').textContent = jsonData.start_time;
+    document.getElementById('grepPattern').textContent = jsonData.grep_pattern || 'N/A'; // パターンがない場合
+
+    // AIモデル情報の動的生成
+    const aiModelInfoDiv = document.getElementById('aiModelInfo');
+    if (jsonData.ai_model) {
+        for (const key in jsonData.ai_model) {
+            if (jsonData.ai_model.hasOwnProperty(key)) {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('meta-item');
+                // キー名を整形 (例: model_name -> Model Name)
+                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                itemDiv.innerHTML = `<strong>${formattedKey}:</strong> ${jsonData.ai_model[key]}`;
+                aiModelInfoDiv.appendChild(itemDiv);
+            }
+        }
+    } else {
+         aiModelInfoDiv.innerHTML = '<div class="meta-item">情報なし</div>';
+    }
+
+    // プロンプト情報の動的生成
+    const promptsInfoDiv = document.getElementById('promptsInfo');
+    if (jsonData.prompts) {
+         for (const key in jsonData.prompts) {
+            if (jsonData.prompts.hasOwnProperty(key)) {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('meta-item');
+                 // キー名を整形 (例: default_prefix -> Default Prefix)
+                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                itemDiv.innerHTML = `<strong>${formattedKey}:</strong>`; // まずキーを追加
+
+                const pre = document.createElement('pre');
+                pre.textContent = jsonData.prompts[key];
+                itemDiv.appendChild(pre); // preタグをキーの下に追加
+                promptsInfoDiv.appendChild(itemDiv);
+            }
+        }
+    } else {
+         promptsInfoDiv.innerHTML = '<div class="meta-item">情報なし</div>';
+    }
+
+
+    // --- 結果詳細の生成 ---
+    const resultsDetailsDiv = document.getElementById('resultsDetails');
+
+    function createResultElement(filePath, data) {
+        const fileDiv = document.createElement('div');
+        fileDiv.classList.add('test-file');
+         // 改善が必要な項目、または詳細がある場合はデフォルトで開くように設定
+        if (data.required) {
+            fileDiv.classList.add('open');
+        }
+
+
+        const headerDiv = document.createElement('div');
+        headerDiv.classList.add('file-header');
+
+        const statusSpan = document.createElement('span');
+        statusSpan.classList.add('status');
+        if (data.required) {
+            statusSpan.classList.add('required');
+            statusSpan.textContent = '改善が必要';
+        } else {
+            statusSpan.classList.add('passed');
+            statusSpan.textContent = '問題なし';
+        }
+
+        const pathSpan = document.createElement('span');
+        pathSpan.classList.add('file-path');
+        pathSpan.textContent = filePath;
+
+        headerDiv.appendChild(statusSpan);
+        headerDiv.appendChild(pathSpan);
+
+        const detailsDiv = document.createElement('div');
+        detailsDiv.classList.add('details');
+
+        const pre = document.createElement('pre');
+        pre.textContent = data.details || '詳細情報はありません。'; // detailsがない場合のフォールバック
+        detailsDiv.appendChild(pre);
+
+        // ヘッダーをクリックしたら詳細を開閉
+        headerDiv.addEventListener('click', () => {
+            fileDiv.classList.toggle('open');
+        });
+
+        fileDiv.appendChild(headerDiv);
+        fileDiv.appendChild(detailsDiv);
+
+        return fileDiv;
+    }
+
+    // results オブジェクトをループして要素を生成・追加
+    if (jsonData.results) {
+        const filePaths = Object.keys(jsonData.results);
+        if(filePaths.length > 0){
+             for (const filePath of filePaths) {
+                if (jsonData.results.hasOwnProperty(filePath)) {
+                    const resultElement = createResultElement(filePath, jsonData.results[filePath]);
+                    resultsDetailsDiv.appendChild(resultElement);
+                }
+            }
+        } else {
+             resultsDetailsDiv.innerHTML = '<p>分析対象ファイルの結果はありませんでした。</p>';
+        }
+
+    } else {
+         resultsDetailsDiv.innerHTML = '<p>結果データが見つかりません。</p>';
+    }
+
+</script>
+
+</body>
+</html>

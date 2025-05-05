@@ -73,7 +73,7 @@ def initialize_ai(config: dict):
             print("Google AI (Gemini) SDK を使用します。")
             genai.configure(api_key=ai_config['api_key'])
             model = genai.GenerativeModel(ai_config['model_name'])
-            return model, "google_ai"
+            return {'model': model}, "google_ai"
         except ImportError:
             print("エラー: 'google-generativeai' ライブラリがインストールされていません。", file=sys.stderr)
             print("pip install google-generativeai を実行してください。", file=sys.stderr)
@@ -96,7 +96,7 @@ def initialize_ai(config: dict):
                 sys.exit(1)
             vertexai.init(project=project_id, location=location)
             model = GenerativeModel(ai_config['model_name'])
-            return model, "vertex_ai"
+            return {'model': model}, "vertex_ai"
         except ImportError:
             print("エラー: 'google-cloud-aiplatform' ライブラリがインストールされていません。", file=sys.stderr)
             print("pip install google-cloud-aiplatform を実行してください。", file=sys.stderr)
@@ -156,7 +156,7 @@ def initialize_ai(config: dict):
 
 def run_grep(input_path: str, pattern: str, grep_command: str):
     """
-    指定されたリポジトリパスでgrepを実行し、ファイルリストを返す
+    指定されたパスでgrepを実行し、ファイルリストを返す
     :param input_path: str 検索対象のパス
     :param pattern: str 検索する文字列
     :param grep_command: str 'grep'（以外が渡される想定はいまのところはない）
@@ -232,15 +232,14 @@ def query_ai_for_file(model, platform, file_path, file_content, default_prompt, 
         try:
             print(f"  Attempt {attempt + 1}/{max_retries}...")
             if platform == "google_ai":
-                response = model.generate_content(f"{default_prompt}\n\n{user_prompt}")
+                response = model['model'].generate_content(f"{default_prompt}\n\n{user_prompt}")
                 response_text = response.text
             elif platform == "vertex_ai":
-                response = model.generate_content(f"{default_prompt}\n\n{user_prompt}")
+                response = model['model'].generate_content(f"{default_prompt}\n\n{user_prompt}")
                 response_text = response.text  # Vertex AIも .text でアクセス可能
 
             elif platform == "amazon_bedrock":
                 try:
-                    bedrock = model  # dict: { "client": ..., "model_id": ... }
                     messages = [
                         {
                             "role": "user",
@@ -248,8 +247,8 @@ def query_ai_for_file(model, platform, file_path, file_content, default_prompt, 
                         }
                     ]
 
-                    response = bedrock["client"].converse(
-                        modelId=bedrock['model_id'],
+                    response = model["client"].converse(
+                        modelId=model['model_id'],
                         messages=messages
                     )
                     # レスポンスからアシスタントの応答を取得
@@ -260,7 +259,7 @@ def query_ai_for_file(model, platform, file_path, file_content, default_prompt, 
                     response_text = ''
 
             elif platform == "openai":
-                # model_info = {"client": OpenAIクライアント, "model_name": str}
+                # model = {"client": OpenAIクライアント, "model_name": str}
                 client = model["client"]
                 model_name = model["model_name"]
                 # OpenAI API呼び出し
@@ -322,7 +321,8 @@ def main():
     # 1. 設定読み込み
     config = load_config()
     default_prompt = config.get('prompts', {}).get('default_prefix', '')
-    output_file = datetime.now().strftime(config.get('output_file', 'result_yokoten%Y%m%d%H%M%S.json'))
+    file_type = config.get('file_type', 'json')
+    output_file = datetime.now().strftime(config.get('output_file', 'result_yokoten%Y%m%d%H%M%S')) + f'.{file_type}'
     max_retries = config.get('max_retries', 5)
     grep_command = 'grep'
 
@@ -348,7 +348,7 @@ def main():
 
     # 3. grepパターンと追加プロンプトの入力
     print("-" * 30)
-    grep_pattern = input("リポジトリ内を検索するgrepパターンを入力してください: ")
+    grep_pattern = input("grepするパターンを入力してください: ")
     if not grep_pattern:
         print("エラー: grepパターンが入力されていません。", file=sys.stderr)
         sys.exit(1)
@@ -360,7 +360,7 @@ def main():
 
     # 4. grep実行とファイルリスト作成
     print("-" * 30)
-    print("リポジトリを検索しています...")
+    print("grepしています...")
     all_found_files = []
     for path in input_paths:
         found_files = run_grep(path, grep_pattern, grep_command)
@@ -413,8 +413,28 @@ def main():
 
     # 6. 結果の保存と表示
     try:
+        ai_model = {}
+        for key in config['ai_model'].keys():
+            if key in ('platform', 'model_id', 'model_name'):
+                ai_model[key] = config['ai_model'][key]
+        prompts = {
+            'default_prefix': config['prompts']['default_prefix'],
+            'additional_prompt': additional_prompt,
+        }
+        save_data = {
+            'start_time': start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'ai_model': ai_model,
+            'grep_pattern': grep_pattern,
+            'prompts': prompts,
+            'results': results
+        }
         with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
+            if file_type == 'json':
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
+            elif file_type == 'html':
+                with open(Path(__file__).parent / "template/report.html", 'r') as template:
+                    html = ''.join(template.readlines())
+                    f.write(html.replace('{}/* json_data */', json.dumps(save_data, indent=2, ensure_ascii=False)))
         print(f"詳細な分析結果を '{output_file}' に保存しました。")
     except Exception as e:
         print(f"エラー: 結果ファイル '{output_file}' の保存に失敗しました: {e}", file=sys.stderr)
