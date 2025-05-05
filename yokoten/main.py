@@ -23,10 +23,12 @@ def load_config():
     ]
     path = ''
     try:
+        config: dict = {}
         for path in candidates:
             if path.exists():
                 with open(path, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
+                    break
         # 環境変数からAPIキーを読み込む (google_aiの場合)
         if config.get('ai_model', {}).get('platform') == 'google_ai':
             api_key_env = config.get('ai_model', {}).get('api_key_env')
