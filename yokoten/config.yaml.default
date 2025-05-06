@@ -43,3 +43,6 @@ max_retries: 5
 
 # ファイル種類
 file_type: html
+
+# レポートの中に表記されるパスの内容 relative | absolute
+report_path_format: relative

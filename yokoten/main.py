@@ -369,6 +369,7 @@ def main():
     file_type = config.get('file_type', 'json')
     output_file = datetime.now().strftime(config.get('output_file', 'result_yokoten%Y%m%d%H%M%S')) + f'.{file_type}'
     max_retries = config.get('max_retries', 5)
+    report_path_format = config.get('report_path_format', 'relative')
 
     # コマンドライン引数
     parser = argparse.ArgumentParser(description="横展開対象をgit grepで検索して、1ファイルずつLLMで分析するツール")
@@ -425,27 +426,32 @@ def main():
     start_time = datetime.now()
 
     for i, file_path in enumerate(all_found_files):
-        print(f"[{i + 1}/{len(all_found_files)}] ファイル '{file_path}' を処理中...")
+        file_path_for_output = file_path
+        if report_path_format == 'relative':
+            for input_path in input_paths:
+                if input_path == file_path_for_output[:len(input_path)]:
+                    file_path_for_output = file_path_for_output[len(input_path) + 1:]
+        print(f"[{i + 1}/{len(all_found_files)}] ファイル '{file_path_for_output}' を処理中...")
 
         # ファイル内容読み込み
         file_content = read_file_content(file_path)
         if file_content is None:
-            results[file_path] = {"required": None, "details": "ファイル読み込みエラー"}
+            results[file_path_for_output] = {"required": None, "details": "ファイル読み込みエラー"}
             print("  スキップ (読み込みエラー)")
             continue
         if not file_content.strip():
-            results[file_path] = {"required": False, "details": "ファイルが空です。"}
+            results[file_path_for_output] = {"required": False, "details": "ファイルが空です。"}
             print("  スキップ (ファイルが空)")
             continue
         # AIに問い合わせ
         ai_result = query_ai_for_file(
             ai_model, platform, file_path, file_content, default_prompt, additional_prompt, max_retries
         )
-        results[file_path] = ai_result
+        results[file_path_for_output] = ai_result
 
         # 対応が必要なファイルをリストアップ
         if ai_result.get("required") is True:  # 明示的にTrueの場合のみ
-            required_files_list.append(file_path)
+            required_files_list.append(file_path_for_output)
             print(f"  -> ★対応が必要と判断されました。")
         elif ai_result.get("required") is False:
             print(f"  -> 対応は不要と判断されました。")
