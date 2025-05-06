@@ -1,6 +1,8 @@
 # yokoten 横展開ツール
 
-カレントディレクトリ、または指定したフォルダをgit grepし、対象となるファイルについて同一のスクリプトで生成AIに横展開修正の要否を質問します。
+カレントディレクトリ、または指定したフォルダをgit grepし、対象となるファイルについて同一のスクリプトでLLMに横展開修正の要否を質問します。
+git grepで検索するため、対象はgit管理されている必要があります。git管理対象外のファイルは検索対象に含まれません。
+以下のLLM(API)に対応しています。
 
 - OpenAI
 - Bedrockを経由したClaude v3.x
@@ -18,8 +20,10 @@
 
 ### インストール
 
+実行にはpython3.8以上とgitが必要です。
+
 ```shell
-git clone 
+git clone https://github.com/sasanquaneuf/yokoten.git
 cd yokoten
 pip3 install .
 # pip install .
@@ -35,6 +39,11 @@ pip3 install .
 
 Bedrockを使用できるIAMユーザーが必要です。
 `aws configure`でIAMユーザーを設定してください。
+
+なお、claude 3.7を使用するためには、model_idにInference profileのARNを指定する必要があります。
+Inference profileは自分で作成する必要があるので注意ください。  
+例）  
+mode_id: arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0
 
 ### Geminiを利用する場合
 
@@ -63,7 +72,7 @@ python3 main.py --input /path/to/your/repository
 
 ## 仕様
 
-.gitignoreされているファイルは検索対象から除外されます。
+git管理化にないファイルは検索対象から除外されます。.gitignoreされているファイルや、untrackedなファイルなど。
 
 ## その他
 
