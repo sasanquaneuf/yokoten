@@ -487,7 +487,7 @@ def main():
                     html = ''.join(template.readlines())
                     f.write(html.replace(
                         '{}/* json_data */',
-                        json.dumps(save_data, indent=2, ensure_ascii=False).replace('<', '&lt;')))
+                        json.dumps(save_data, indent=2, ensure_ascii=False).replace('<', '\\u003C')))
         print(f"詳細な分析結果を '{output_file}' に保存しました。")
     except Exception as e:
         print(f"エラー: 結果ファイル '{output_file}' の保存に失敗しました: {e}", file=sys.stderr)
