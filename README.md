@@ -20,7 +20,7 @@ git grepで検索するため、対象はgit管理されている必要があり
 
 ### インストール
 
-実行にはpython3.8以上とgitが必要です。
+実行にはpython3.9以上（3.8でも動作します）とgitが必要です。
 
 ```shell
 git clone https://github.com/sasanquaneuf/yokoten.git
