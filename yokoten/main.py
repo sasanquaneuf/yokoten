@@ -381,6 +381,7 @@ def main():
     args = parser.parse_args()
     if args.input:
         input_paths = args.input
+        report_path_format = 'absolute'
     else:
         input_paths = [str(Path.cwd())]
 
