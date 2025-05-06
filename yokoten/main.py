@@ -155,46 +155,88 @@ def initialize_ai(config: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
         sys.exit(1)
 
 
-def run_grep(input_path: str, pattern: str, grep_command: str) -> List[str]:
+def run_grep(input_path: str, pattern: str) -> List[str]:
     """
-    指定されたパスでgrepを実行し、ファイルリストを返す
-    :param input_path: str 検索対象のパス
+    Git リポジトリ配下で git grep を実行し、ヒットしたファイルのパス一覧を返す
+
+    :param input_path: str 検索対象ディレクトリ（Git リポジトリのルートまたはそのサブディレクトリ）
     :param pattern: str 検索する文字列
-    :param grep_command: str 'grep'（以外が渡される想定はいまのところはない）
-    :return:
+    :return: List[str] ヒットしたファイルパス
     """
     if not os.path.exists(input_path):
-        print(f"警告: パス '{input_path}' にファイルまたはディレクトリが存在しません。スキップします。", file=sys.stderr)
+        print(f"警告: パス '{input_path}' が存在しません。スキップします。", file=sys.stderr)
         return []
+
+    # まず Git リポジトリかどうか確認
     try:
-        # -l: ファイル名のみ出力, -r: 再帰的に検索, -I: バイナリファイルを無視
-        # エラーがあってもファイルリストは取得できることがあるため、check=False
-        # UTF-8以外のファイルがある場合エラーになる可能性あり
-        result = subprocess.run(
-            [grep_command, '-rlI', pattern, input_path],
+        result_check = subprocess.run(
+            ['git', "-C", input_path, "rev-parse", "--is-inside-work-tree"],
             capture_output=True,
             text=True,
-            encoding='utf-8',
-            errors='ignore',  # grep結果のデコードエラーを無視
-            check=False  # grepが何も見つけなくてもエラーにしない
+            encoding="utf-8",
+            errors="ignore",
+            check=False,
         )
-        if result.returncode > 1:  # 0:見つかった, 1:見つからなかった, >1:エラー
-            print(
-                f"警告: grep実行中にエラーが発生しました (パス: {input_path}, パターン: {pattern})。"
-                f"stderr:\n{result.stderr}", file=sys.stderr)
-
-        files = result.stdout.strip().split('\n')
-        # 空行やエラーメッセージが混じる場合があるのでフィルタリング
-        valid_files = [f for f in files if f and os.path.isfile(f)]
-        print(f"パス '{input_path}' で {len(valid_files)} 件のファイルがヒットしました。")
-        return valid_files
+        if result_check.returncode != 0 or result_check.stdout.strip() != "true":
+            print(f"警告: '{input_path}' は Git リポジトリではありません。", file=sys.stderr)
+            return []
     except FileNotFoundError:
         print(
-             f"エラー: grepコマンド '{grep_command}' が見つかりません。"
-             f"パスを確認するか、config.yamlのgrep_commandを修正してください。", file=sys.stderr)
+            f"エラー: git コマンドが見つかりません。"
+            f"パスを確認するか、config.yaml の git_command を修正してください。",
+            file=sys.stderr,
+        )
         return []
     except Exception as e:
-        print(f"エラー: grep実行中に予期せぬエラーが発生しました (パス: {input_path}): {e}", file=sys.stderr)
+        print(f"エラー: git rev-parse 実行中に予期せぬエラーが発生しました: {e}", file=sys.stderr)
+        return []
+
+    # git grep 実行 (-I バイナリ除外, -l ファイル名のみ, --null 出力を NUL 区切り)
+    try:
+        result = subprocess.run(
+            [
+                'git',
+                "-C",
+                input_path,
+                "grep",
+                "-Il",          # -I: バイナリ省く, -l: ファイル名のみ
+                "--null",       # 区切り文字を \0 にして安全に分割
+                pattern,
+                "--",           # ここ以降はパス指定
+                "."             # input_path 配下すべて
+            ],
+            capture_output=True,
+            text=False,        # バイナリセーフに扱うため bytes で受け取る
+            check=False,
+        )
+
+        if result.returncode > 1:  # 0: 見つかった, 1: 見つからず, >1: エラー
+            stderr_text = result.stderr.decode("utf-8", errors="ignore") if result.stderr else ""
+            print(
+                f"警告: git grep 実行中にエラーが発生しました "
+                f"(パス: {input_path}, パターン: {pattern}).\nstderr:\n{stderr_text}",
+                file=sys.stderr,
+            )
+
+        # NUL 区切りなので split(b'\0')
+        files = [
+            os.path.join(input_path, f.decode("utf-8", errors="ignore"))
+            for f in result.stdout.split(b"\0")
+            if f
+        ]
+        valid_files = [f for f in files if os.path.isfile(f)]
+        print(f"パス '{input_path}' で {len(valid_files)} 件のファイルがヒットしました。")
+        return valid_files
+
+    except FileNotFoundError:
+        print(
+            f"エラー: git コマンドが見つかりません。"
+            f"パスを確認するか、config.yaml の git_command を修正してください。",
+            file=sys.stderr,
+        )
+        return []
+    except Exception as e:
+        print(f"エラー: git grep 実行中に予期せぬエラーが発生しました (パス: {input_path}): {e}", file=sys.stderr)
         return []
 
 
@@ -327,10 +369,9 @@ def main():
     file_type = config.get('file_type', 'json')
     output_file = datetime.now().strftime(config.get('output_file', 'result_yokoten%Y%m%d%H%M%S')) + f'.{file_type}'
     max_retries = config.get('max_retries', 5)
-    grep_command = 'grep'
 
     # コマンドライン引数
-    parser = argparse.ArgumentParser(description="横展開対象をgrepで検索して、1ファイルずつLLMで分析するツール")
+    parser = argparse.ArgumentParser(description="横展開対象をgit grepで検索して、1ファイルずつLLMで分析するツール")
     parser.add_argument(
         '--input',
         nargs='*',
@@ -352,7 +393,7 @@ def main():
 
     # 3. grepパターンと追加プロンプトの入力
     print("-" * 30)
-    grep_pattern = input("grepするパターンを入力してください: ")
+    grep_pattern = input("git grepするパターンを入力してください: ")
     if not grep_pattern:
         print("エラー: grepパターンが入力されていません。", file=sys.stderr)
         sys.exit(1)
@@ -367,7 +408,7 @@ def main():
     print("grepしています...")
     all_found_files = []
     for path in input_paths:
-        found_files = run_grep(path, grep_pattern, grep_command)
+        found_files = run_grep(path, grep_pattern)
         all_found_files.extend(found_files)
 
     if not all_found_files:
