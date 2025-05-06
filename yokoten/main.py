@@ -7,11 +7,12 @@ import subprocess
 import sys
 import time
 import traceback
+from typing import Dict, Any, Tuple, List, Optional, Union
 
 import yaml
 
 
-def load_config():
+def load_config() -> Dict[str, Any]:
     """
     設定ファイル(config.yaml)を読み込む
     :return:
@@ -21,7 +22,7 @@ def load_config():
         Path(__file__).parent / "config.yaml",
         Path(__file__).parent / "config.yaml.default",
     ]
-    path = ''
+    path: Optional[Path] = None
     try:
         config: dict = {}
         for path in candidates:
@@ -58,7 +59,7 @@ def load_config():
         sys.exit(1)
 
 
-def initialize_ai(config: dict):
+def initialize_ai(config: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
     """
     設定に基づいてAIクライアントを初期化する
     :param config: dict 設定データ
@@ -154,7 +155,7 @@ def initialize_ai(config: dict):
         sys.exit(1)
 
 
-def run_grep(input_path: str, pattern: str, grep_command: str):
+def run_grep(input_path: str, pattern: str, grep_command: str) -> List[str]:
     """
     指定されたパスでgrepを実行し、ファイルリストを返す
     :param input_path: str 検索対象のパス
@@ -197,7 +198,7 @@ def run_grep(input_path: str, pattern: str, grep_command: str):
         return []
 
 
-def read_file_content(filepath: str):
+def read_file_content(filepath: str) -> Optional[str]:
     """
     ファイルの内容を読み込む
     :param filepath:
@@ -211,7 +212,9 @@ def read_file_content(filepath: str):
         return None  # エラーの場合はNoneを返す
 
 
-def query_ai_for_file(model, platform, file_path, file_content, default_prompt, additional_prompt, max_retries):
+def query_ai_for_file(
+        model: Dict[str, Any], platform: str, file_path: str, file_content: str,
+        default_prompt: str, additional_prompt: str, max_retries: int) -> Dict[str, Union[bool, str, None]]:
     """
     AIにファイルを渡し、JSON形式の回答を得る。リトライ機能付き。
     :param model:
@@ -319,7 +322,7 @@ def main():
     :return:
     """
     # 1. 設定読み込み
-    config = load_config()
+    config: Dict[str, Any] = load_config()
     default_prompt = config.get('prompts', {}).get('default_prefix', '')
     file_type = config.get('file_type', 'json')
     output_file = datetime.now().strftime(config.get('output_file', 'result_yokoten%Y%m%d%H%M%S')) + f'.{file_type}'
@@ -344,6 +347,7 @@ def main():
         # 実行は継続するが、AIへの指示が不十分になる可能性
 
     # 2. AIクライアント初期化
+    ai_model: Dict[str, Any]
     ai_model, platform = initialize_ai(config)
 
     # 3. grepパターンと追加プロンプトの入力
@@ -375,7 +379,7 @@ def main():
     print("-" * 30)
 
     # 5. 各ファイルの分析と結果保存
-    results = {}
+    results: Dict[str, Dict[str, Union[bool, str, None]]] = {}
     required_files_list = []
     start_time = datetime.now()
 
